@@ -1,0 +1,81 @@
+name: 'CRA check'
+description: 'Cyber Resilience Act helpers for CI: check an SBOM against the minimum elements, look up known vulnerabilities, check licence risks and what the repository already shows. Information only, not legal advice.'
+author: 'Ambolt'
+branding:
+  icon: 'shield'
+  color: 'gray-dark'
+inputs:
+  sbom:
+    description: 'Path to a CycloneDX or SPDX JSON file. Leave empty to skip the SBOM and licence checks.'
+    required: false
+    default: ''
+  min-checks:
+    description: 'Fail when fewer than this many of the 9 SBOM minimum-element checks pass (0 = never fail).'
+    required: false
+    default: '0'
+  osv:
+    description: 'Look up known vulnerabilities for components with a package URL (sends package URLs to api.osv.dev).'
+    required: false
+    default: 'false'
+  fail-on-vulns:
+    description: 'With osv: fail when any component has a known vulnerability.'
+    required: false
+    default: 'false'
+  project-licence:
+    description: 'Licence of your own project for the licence check: proprietary, MIT, Apache-2.0, GPL-3.0-only, ... (empty = no licence check).'
+    required: false
+    default: ''
+  fail-on-licence-risk:
+    description: 'Fail when the licence check finds a high risk.'
+    required: false
+    default: 'false'
+  repo-check:
+    description: 'Also run the repository check on this repository (security policy, contact, SBOM export, releases).'
+    required: false
+    default: 'false'
+  cli-version:
+    description: 'Version of @ambolt/cra to run.'
+    required: false
+    default: '0.1.0'
+runs:
+  using: 'composite'
+  steps:
+    - name: Run CRA checks
+      shell: bash
+      env:
+        IN_SBOM: ${{ inputs.sbom }}
+        IN_MIN: ${{ inputs.min-checks }}
+        IN_OSV: ${{ inputs.osv }}
+        IN_VULNS: ${{ inputs.fail-on-vulns }}
+        IN_LIC: ${{ inputs.project-licence }}
+        IN_LICFAIL: ${{ inputs.fail-on-licence-risk }}
+        IN_REPO: ${{ inputs.repo-check }}
+        IN_VER: ${{ inputs.cli-version }}
+        GITHUB_REPO: ${{ github.repository }}
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        set -u -o pipefail
+        cra() { npx -y "@ambolt/cra@${IN_VER}" "$@"; }
+        status=0
+        summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
+        { echo "## CRA check"; echo; } >> "$summary"
+        if [ -n "$IN_SBOM" ]; then
+          args=()
+          [ "$IN_MIN" != "0" ] && args+=(--min "$IN_MIN")
+          if [ "$IN_OSV" = "true" ]; then args+=(--osv); [ "$IN_VULNS" = "true" ] && args+=(--fail-on-vulns); fi
+          { echo '### SBOM'; echo '```'; } >> "$summary"
+          cra sbom "$IN_SBOM" "${args[@]}" 2>&1 | tee -a "$summary" || status=1
+          echo '```' >> "$summary"
+          if [ -n "$IN_LIC" ]; then
+            largs=(--project "$IN_LIC"); [ "$IN_LICFAIL" = "true" ] && largs+=(--fail-on-risk)
+            { echo '### Licences'; echo '```'; } >> "$summary"
+            cra licences "$IN_SBOM" "${largs[@]}" 2>&1 | tee -a "$summary" || status=1
+            echo '```' >> "$summary"
+          fi
+        fi
+        if [ "$IN_REPO" = "true" ]; then
+          { echo '### Repository'; echo '```'; } >> "$summary"
+          cra repo "$GITHUB_REPO" 2>&1 | tee -a "$summary" || status=1
+          echo '```' >> "$summary"
+        fi
+        exit $status
