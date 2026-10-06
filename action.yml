@@ -1,5 +1,5 @@
 name: 'Cyber Resilience Act SBOM Check'
-description: 'Cyber Resilience Act helpers for CI: check an SBOM against the minimum elements, look up known vulnerabilities, check licence risks and what the repository already shows. Information only, not legal advice.'
+description: 'Cyber Resilience Act checks for CI: SBOM minimum elements, known vulnerabilities and licence risks. Not legal advice.'
 author: 'Ambolt'
 branding:
   icon: 'shield'
