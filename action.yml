@@ -1,4 +1,4 @@
-name: 'CRA check'
+name: 'Cyber Resilience Act SBOM Check'
 description: 'Cyber Resilience Act helpers for CI: check an SBOM against the minimum elements, look up known vulnerabilities, check licence risks and what the repository already shows. Information only, not legal advice.'
 author: 'Ambolt'
 branding:
